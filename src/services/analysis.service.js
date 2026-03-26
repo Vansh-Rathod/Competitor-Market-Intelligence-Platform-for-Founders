@@ -8,7 +8,7 @@ import { reportGenerationAgent } from '../agents/report-generation.agent.js';
 
 export async function runFullAnalysis(rawIdeaInput) {
   const structuredIdea = await ideaUnderstandingAgent(rawIdeaInput);
-  // const keywords = await keywordExpansionAgent(structuredIdea);
+  const keywords = await keywordExpansionAgent(structuredIdea);
   // const rawCompetitors = await dataCollectionAgent(keywords);
   // const classifiedCompetitors = await competitorClassificationAgent(rawCompetitors, structuredIdea);
   // const marketInsights = await marketAnalysisAgent(classifiedCompetitors);
@@ -31,6 +31,9 @@ export async function runFullAnalysis(rawIdeaInput) {
     // report,
   // };
   
-  return structuredIdea;
+  return {
+    idea: structuredIdea,
+    keywords,
+  };
 }
 

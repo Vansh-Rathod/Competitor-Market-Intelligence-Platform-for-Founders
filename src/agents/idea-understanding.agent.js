@@ -3,22 +3,9 @@ import {
   IDEA_UNDERSTANDING_SYSTEM_PROMPT,
   buildIdeaUnderstandingUserMessage,
 } from '../prompts/idea-understanding.prompt.js';
+import { parseStructuredResponse } from '../utils/llm-json.js';
 
 const DEFAULT_MODEL = 'gpt-4o-mini';
-
-/**
- * Parses JSON from LLM response, optionally stripping markdown code blocks.
- */
-function parseStructuredResponse(text) {
-  if (!text || typeof text !== 'string') return null;
-  const trimmed = text.trim();
-  const withoutBackticks = trimmed.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
-  try {
-    return JSON.parse(withoutBackticks);
-  } catch {
-    return null;
-  }
-}
 
 /**
  * Merges parsed LLM output with raw input, preferring LLM values but falling back to input.
@@ -34,6 +21,7 @@ function mergeWithRawInput(parsed, rawIdeaInput) {
     target_customer: parsed?.target_customer ?? rawIdeaInput.target_customer ?? null,
     geo: parsed?.geo ?? rawIdeaInput.geo ?? null,
   };
+  
 }
 
 export async function ideaUnderstandingAgent(rawIdeaInput) {
