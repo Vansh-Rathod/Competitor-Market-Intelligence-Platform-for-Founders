@@ -4,6 +4,7 @@ import {
   buildKeywordExpansionUserMessage,
 } from '../prompts/keyword-expansion.prompt.js';
 import { parseStructuredResponse, toUniqueStringArray } from '../utils/llm-json.js';
+import { log, logError } from '../utils/logger.js';
 
 const DEFAULT_MODEL = 'gpt-4o-mini';
 
@@ -54,6 +55,12 @@ function normalizeKeywordBundle(parsed, structuredIdea) {
 export async function keywordExpansionAgent(structuredIdea) {
   const model = process.env.OPENAI_MODEL || DEFAULT_MODEL;
   const userMessage = buildKeywordExpansionUserMessage(structuredIdea);
+  log('keyword_expansion.started', {
+    model,
+    ideaIndustry: structuredIdea?.industry ?? null,
+    primaryCount: structuredIdea?.primary_keywords?.length ?? 0,
+    secondaryCount: structuredIdea?.secondary_keywords?.length ?? 0,
+  });
 
   try {
     const response = await openaiClient.chat.completions.create({
@@ -68,9 +75,23 @@ export async function keywordExpansionAgent(structuredIdea) {
 
     const content = response.choices?.[0]?.message?.content;
     const parsed = parseStructuredResponse(content);
-    return normalizeKeywordBundle(parsed, structuredIdea);
-  } catch {
+    const normalized = normalizeKeywordBundle(parsed, structuredIdea);
+    log('keyword_expansion.completed', {
+      model,
+      llmOutput: parsed,
+      normalized,
+      usage: response?.usage ?? null,
+    });
+    return normalized;
+  } catch (error) {
     // Keep pipeline resilient even if model call fails.
-    return normalizeKeywordBundle(null, structuredIdea);
+    const fallback = normalizeKeywordBundle(null, structuredIdea);
+    logError('keyword_expansion.failed_using_fallback', {
+      model,
+      message: error?.message ?? 'Unknown error',
+      stack: error?.stack ?? null,
+      fallback,
+    });
+    return fallback;
   }
 }

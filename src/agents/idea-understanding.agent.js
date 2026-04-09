@@ -4,6 +4,7 @@ import {
   buildIdeaUnderstandingUserMessage,
 } from '../prompts/idea-understanding.prompt.js';
 import { parseStructuredResponse } from '../utils/llm-json.js';
+import { log, logError } from '../utils/logger.js';
 
 const DEFAULT_MODEL = 'gpt-4o-mini';
 
@@ -28,18 +29,40 @@ export async function ideaUnderstandingAgent(rawIdeaInput) {
   const model = process.env.OPENAI_MODEL || DEFAULT_MODEL;
   const userMessage = buildIdeaUnderstandingUserMessage(rawIdeaInput);
 
-  const response = await openaiClient.chat.completions.create({
+  log('idea_understanding.started', {
     model,
-    messages: [
-      { role: 'system', content: IDEA_UNDERSTANDING_SYSTEM_PROMPT },
-      { role: 'user', content: userMessage },
-    ],
-    response_format: { type: 'json_object' },
-    temperature: 0.3,
+    inputKeys: Object.keys(rawIdeaInput ?? {}),
   });
 
-  const content = response.choices?.[0]?.message?.content;
-  const parsed = parseStructuredResponse(content);
+  try {
+    const response = await openaiClient.chat.completions.create({
+      model,
+      messages: [
+        { role: 'system', content: IDEA_UNDERSTANDING_SYSTEM_PROMPT },
+        { role: 'user', content: userMessage },
+      ],
+      response_format: { type: 'json_object' },
+      temperature: 0.3,
+    });
 
-  return mergeWithRawInput(parsed, rawIdeaInput);
+    const content = response.choices?.[0]?.message?.content;
+    const parsed = parseStructuredResponse(content);
+    const merged = mergeWithRawInput(parsed, rawIdeaInput);
+
+    log('idea_understanding.completed', {
+      model,
+      llmOutput: parsed,
+      mergedOutput: merged,
+      usage: response?.usage ?? null,
+    });
+
+    return merged;
+  } catch (error) {
+    logError('idea_understanding.failed', {
+      model,
+      message: error?.message ?? 'Unknown error',
+      stack: error?.stack ?? null,
+    });
+    throw error;
+  }
 }
